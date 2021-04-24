@@ -1,10 +1,9 @@
 from telegram.ext import Updater, MessageHandler, Filters
-from telegram.ext import CallbackContext, CommandHandler, ConversationHandler
+from telegram.ext import CommandHandler, ConversationHandler
 from transform_scripts.color_transform import color_transformation
 from transform_scripts.palette_transform import palette_transformation
 from transform_scripts.size_transform import size_transformation
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from PIL import Image
 import os
 
 
@@ -198,12 +197,12 @@ def main():
         states={
             1: [CommandHandler('b_w', b_w_transform, pass_user_data=True),
                 CommandHandler('palette', palette_chosen, pass_user_data=True),
-                MessageHandler(Filters.text, phrase_check, pass_user_data=True)],
+                MessageHandler(Filters.text, phrase_check)],
             2: [MessageHandler(Filters.text, palette_transform, pass_user_data=True)],
             3: [MessageHandler(Filters.photo, receive_photo, pass_user_data=True),
                 CommandHandler('b_w', simple_reply),
                 CommandHandler('palette', simple_reply),
-                MessageHandler(Filters.text, command_check, pass_user_data=True)],
+                MessageHandler(Filters.text, command_check)],
             4: [MessageHandler(Filters.text, variable_answer, pass_user_data=True)],
             5: [MessageHandler(Filters.text, resize, pass_user_data=True)]
         },
