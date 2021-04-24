@@ -2,7 +2,9 @@ from telegram.ext import Updater, MessageHandler, Filters
 from telegram.ext import CallbackContext, CommandHandler, ConversationHandler
 from transform_scripts.color_transform import color_transformation
 from transform_scripts.palette_transform import palette_transformation
+from transform_scripts.size_transform import size_transformation
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from PIL import Image
 import os
 
 
@@ -20,7 +22,10 @@ def start(update, context):
 
 
 def help(update, context):
-    update.message.reply_text('Help message.')
+    update.message.reply_text('Этот бот способен совершать не которые операции над изображениями, такие как: создание чёрно-белой картинки, перевод изображение в палитру определённых цветов, а также масштабирование изображения (с сохранением и без) отношения сторон.'
+                              'Бот умеет распознавать некоторые сообщения, но для более удобно взаимодействия рекомендуется использовать специальные кнопки, это ускорит общение с ботом.'
+                              'Если вы хотите изменить фото, которое нужно обработать, то можете просто отправить новое, бот обрабатывает последнее полученное фото!'
+                              'При использовании масштабирования размер указывается в следующем порядке: ширина, высота.')
 
 
 def receive_photo(update, context):
@@ -51,8 +56,7 @@ def palette_chosen(update, context):
     return 2
 
 
-def palette_transform(update, context):
-    text = update.message.text
+def find_nums(text):
     nums, num, digit = [], '', False
     for i in text:
         if i.isdigit():
@@ -65,31 +69,43 @@ def palette_transform(update, context):
             num = ''
     if num != '':
         nums.append(int(num))
+    return nums
+
+
+def download_image(user_id, context):
+    if os.path.exists(f'user_images/{user_id}.jpg'):
+        os.remove(f'user_images/{user_id}.jpg')
+    file_id = context.user_data['file_id']
+    file = context.bot.getFile(file_id)
+    file.download(f'user_images/{user_id}.jpg')
+
+
+def palette_transform(update, context):
+    text = update.message.text
+    nums = find_nums(text)
     if len(nums) == 1 and 'любая' not in text.lower() and 0 < nums[0] < 3:
         update.message.reply_text('Понял, сделаю в течении минуты',
                                   reply_markup=markup_receive_photo)
         user_id = update.message.from_user.id
-        if os.path.exists(f'user_images/{user_id}.jpg'):
-            os.remove(f'user_images/{user_id}.jpg')
-        file_id = context.user_data['file_id']
-        file = context.bot.getFile(file_id)
-        file.download(f'user_images/{user_id}.jpg')
+        download_image(user_id, context)
         palette_transformation(f'user_images/{user_id}.jpg', nums[0])
         context.bot.send_photo(update.message.chat_id, open(f'user_images/{user_id}.jpg', 'rb'))
         os.remove(f'user_images/{user_id}.jpg')
         update.message.reply_text('Держи')
         return 1
     else:
-        data = phrase_check(update, context)
-        if data is None:
-            if 'nft' or 'token' or 'нфт' or 'токен' in text.lower():
-                update.message.reply_text(f'Хочешь узнать об NFT токенах и продавать свои творения? Ты сможешь почитать о нём здесь: {LINKS["nft"]}')
-            else:
-                update.message.reply_text('Я тебя не понял')
-                update.message.reply_text('Используй быстрые команды, это удобно и легко')
+        if 'nft' in text.lower() or 'token' in text.lower() or 'нфт' in text.lower() or 'токен' in text.lower():
+            update.message.reply_text(f'Хочешь узнать об NFT токенах и продавать свои творения? '
+                                      f'Ты сможешь почитать о нём здесь: {LINKS["nft"]}')
             return 2
+        elif 'верн' in text.lower():
+            update.message.reply_text('Какую обработку ты хочешь получить?',
+                                      reply_markup=markup_receive_photo)
+            return 1
         else:
-            return data
+            update.message.reply_text('Такой палитры у меня нет, но ты можешь выбрать из имеющихся)')
+            return 2
+
 
 def phrase_check(update, context):
     text = update.message.text
@@ -100,8 +116,28 @@ def phrase_check(update, context):
     elif 'палитр' in text.lower() or 'набор' in text.lower():
         palette_chosen(update, context)
         return 2
+    elif 'масштаб' in text.lower():
+        update.message.reply_text('Ты хочешь сохранить соотношение сторон?',
+                                  reply_markup=variable_question_markup)
+        return 4
+    elif 'верн' in text.lower():
+        update.message.reply_text('Какую обработку ты хочешь получить?',
+                                  reply_markup=markup_receive_photo)
+        return 1
     update.message.reply_text('Моя твоя не понимать')
     return 1
+
+
+def variable_answer(update, context):
+    text = update.message.text
+    if 'да' in text.lower() or 'нет' in text.lower():
+        context.user_data['save_ratio'] = 'да' in text.lower()
+        update.message.reply_text('Выбери размер нового изображения или отправь свой',
+                                  reply_markup=ReplyKeyboardRemove())
+        return 5
+    else:
+        num = phrase_check(update, context)
+        return num
 
 
 def command_check(update, context):
@@ -111,7 +147,8 @@ def command_check(update, context):
         return 3
     elif 'нфт' in text.lower() or 'токен' in text.lower() \
             or 'nft' in text.lower() or 'token' in text.lower():
-        update.message.reply_text(f'Хочешь узнать об NFT токенах и продавать свои творения? Ты сможешь почитать о нём здесь: {LINKS["nft"]}')
+        update.message.reply_text(f'Хочешь узнать об NFT токенах и продавать свои творения? '
+                                  f'Ты сможешь почитать о нём здесь: {LINKS["nft"]}')
         return 3
     elif 'умеешь' in text.lower():
         help(update, context)
@@ -120,6 +157,27 @@ def command_check(update, context):
         update.message.reply_text('Я тебя не понял')
         update.message.reply_text('Ты можешь воспользоваться кнопками быстрых комманд, это легко и удобно!')
         return 3
+
+
+def resize(update, context):
+    text = update.message.text
+    nums = find_nums(text)
+    user_id = update.message.from_user.id
+    download_image(user_id, context)
+    if 0 < len(nums) < 3:
+        size_transformation(user_id, context.user_data['save_ratio'], *nums)
+        update.message.reply_text('А вот и оно!',
+                                  reply_markup=markup_receive_photo)
+        context.bot.send_photo(update.message.chat_id, open(f'user_images/{user_id}.jpg', 'rb'))
+        os.remove(f'user_images/{user_id}.jpg')
+        return 1
+    elif 'верн' in text.lower():
+        update.message.reply_text('Какую обработку ты хочешь получить?',
+                                  reply_markup=markup_receive_photo)
+        return 1
+    else:
+        update.message.reply_text('Это не похоже на размер изображения!!!')
+        return 5
 
 
 def simple_reply(update, context):
@@ -145,7 +203,9 @@ def main():
             3: [MessageHandler(Filters.photo, receive_photo, pass_user_data=True),
                 CommandHandler('b_w', simple_reply),
                 CommandHandler('palette', simple_reply),
-                MessageHandler(Filters.text, command_check, pass_user_data=True)]
+                MessageHandler(Filters.text, command_check, pass_user_data=True)],
+            4: [MessageHandler(Filters.text, variable_answer, pass_user_data=True)],
+            5: [MessageHandler(Filters.text, resize, pass_user_data=True)]
         },
         fallbacks=[MessageHandler(Filters.photo, receive_photo, pass_user_data=True)]
     )
@@ -157,10 +217,12 @@ def main():
 
 
 if __name__ == '__main__':
-    reply_keyboard = [['Хочу чёрно-белую', 'Переведи в палитру цветов']]
+    reply_keyboard = [['Хочу чёрно-белую', 'Переведи в палитру цветов', 'Масштабируй изображение']]
     markup_receive_photo = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-    reply_keyboard = [['1', '2', '3'], ['4', '5', '6']]
+    reply_keyboard = [['1', '2', '3'], ['4', '5', '6'], ['Вернуться']]
     markup_choose_palette = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     reply_keyboard = [['Обработай мне фото', 'Что ты умеешь?']]
     start_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    reply_keyboard = [['Да', 'Нет'], ['Вернуться']]
+    variable_question_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     main()
