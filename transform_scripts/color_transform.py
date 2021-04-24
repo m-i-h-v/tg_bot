@@ -1,5 +1,4 @@
 from PIL import Image
-from colorsys import rgb_to_hls
 
 
 def color_transformation(filename):
