@@ -314,7 +314,7 @@ def simple_reply(update, context):
 
 
 def main():
-    updater = Updater('1715854605:AAH3sMobHjmh9JImdAXTVlWTUy5yA-gWWQY',
+    updater = Updater('Here the token is to be',
                       use_context=True)
     dp = updater.dispatcher
 
