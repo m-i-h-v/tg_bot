@@ -5,15 +5,10 @@ from transform_scripts.palette_transform import palette_transformation
 from transform_scripts.size_transform import size_transformation
 from transform_scripts.invert_transform import invert_transformation
 from transform_scripts.anaglyph_transform import anaglyph_transformation
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from transform_scripts.supeimpose_transform import superimpose_transformation
+from telegram import ReplyKeyboardMarkup, InlineKeyboardButton, \
+    InlineKeyboardMarkup
 import os
-
-
-LINKS = {'nft': 'тут ссылка'}
-
-
-def stop():
-    return ConversationHandler.END
 
 
 def start(update, context):
@@ -24,20 +19,22 @@ def start(update, context):
 
 
 def help(update, context):
-    update.message.reply_text('Этот бот способен совершать не которые опер'
+    update.message.reply_text('Этот бот способен совершать некоторые опер'
                               'ации над изображениями, такие как: создание '
                               'чёрно-белой картинки, перевод изображение в '
                               'палитру определённых цветов, а также масштаби'
                               'рование изображения (с сохранением и без) отно'
-                              'шения сторон Бот умеет распознавать некоторые '
-                              'сообщения, но для более удобно взаимодействия '
-                              'рекомендуется использовать специальные кнопки, '
-                              'это ускорит общение с ботом. Если вы хотите '
-                              'изменить фото, которое нужно обработать, то '
-                              'можете просто отправить новое, бот обрабатывает'
-                              ' последнее полученное фото! При использовании '
-                              'масштабирования размер указывается в следующем '
-                              'порядке: ширина, высота.')
+                              'шения сторон. Умеет совмещать изображения и '
+                              'создавать анаглифы! Бот умеет распознавать неко'
+                              'торые сообщения, но для более удобно взаимо '
+                              'действия рекомендуется использовать специальные'
+                              ' кнопки, это ускорит общение с ботом. Если вы х'
+                              'отите изменить фото, которое нужно обработать, '
+                              'то можете просто отправить новое, бот обрабатыв'
+                              'ает последнее полученное фото! При использовани'
+                              'и масштабирования размер указывается в следующе'
+                              'м порядке: ширина, высота.',
+                              reply_markup=anaglyph_markup)
 
 
 def receive_photo(update, context):
@@ -61,9 +58,10 @@ def b_w_transform(update, context):
 def palette_chosen(update, context):
     update.message.reply_text('Выбери палитру цветов',
                               reply_markup=markup_choose_palette)
-    for palette in range(1, 3):
+    for palette in range(1, 7):
         context.bot.send_photo(update.message.chat_id,
-                               open(f'palettes/palette_{palette}.jpg', 'rb'))
+                               open(f'palette_images/palette_img_{palette}'
+                                    f'.jpg', 'rb'))
     return 2
 
 
@@ -94,7 +92,7 @@ def download_image(user_id, context):
 def palette_transform(update, context):
     text = update.message.text
     nums = find_nums(text)
-    if len(nums) == 1 and 'любая' not in text.lower() and 0 < nums[0] < 3:
+    if len(nums) == 1 and 'любая' not in text.lower() and 0 < nums[0] < 7:
         update.message.reply_text('Понял, сделаю в течении минуты',
                                   reply_markup=markup_receive_photo)
         user_id = update.message.from_user.id
@@ -111,7 +109,8 @@ def palette_transform(update, context):
                 or 'нфт' in text.lower() or 'токен' in text.lower():
             update.message.reply_text(f'Хочешь узнать об NFT токенах и '
                                       f'продавать свои творения? Ты сможешь '
-                                      f'почитать о нём здесь: {LINKS["nft"]}')
+                                      f'прочитать о нём нажав на копку',
+                                      reply_markup=nft_markup)
             return 2
         elif 'верн' in text.lower():
             update.message.reply_text('Какую обработку ты хочешь получить?',
@@ -158,6 +157,17 @@ def phrase_check(update, context):
     elif 'умеешь' in text.lower():
         help(update, context)
         return 1
+    elif 'совмест' in text.lower():
+        update.message.reply_text('Хорошо, отправь мне изображение, которое ты'
+                                  ' хочешь наложить',
+                                  reply_markup=go_back_markup)
+        return 7
+    elif 'nft' in text.lower():
+        update.message.reply_text(f'Хочешь узнать об NFT токенах и '
+                                  f'продавать свои творения? Ты сможешь '
+                                  f'прочитать о нём нажав на копку',
+                                  reply_markup=nft_markup)
+        return 1
     update.message.reply_text('Моя твоя не понимать')
     return 1
 
@@ -168,11 +178,15 @@ def variable_answer(update, context):
         context.user_data['save_ratio'] = 'да' in text.lower()
         update.message.reply_text('Выбери размер нового изображения '
                                   'или отправь свой',
-                                  reply_markup=ReplyKeyboardRemove())
+                                  reply_markup=go_back_markup)
         return 5
+    elif 'верн' in text.lower():
+        update.message.reply_text('Какую обработку ты хочешь получить?',
+                                  reply_markup=markup_receive_photo)
+        return 1
     else:
-        num = phrase_check(update, context)
-        return num
+        update.message.reply_text('Я не понял')
+        return 4
 
 
 def command_check(update, context):
@@ -182,9 +196,10 @@ def command_check(update, context):
         return 3
     elif 'нфт' in text.lower() or 'токен' in text.lower() \
             or 'nft' in text.lower() or 'token' in text.lower():
-        update.message.reply_text(f'Хочешь узнать об NFT токенах и продавать '
-                                  f'свои творения? Ты сможешь почитать о '
-                                  f'нём здесь: {LINKS["nft"]}')
+        update.message.reply_text(f'Хочешь узнать об NFT токенах и '
+                                  f'продавать свои творения? Ты сможешь '
+                                  f'прочитать о нём нажав на копку',
+                                  reply_markup=nft_markup)
         return 3
     elif 'умеешь' in text.lower():
         help(update, context)
@@ -228,13 +243,13 @@ def anaglyph(update, context):
                                       'быть больше 0')
             return 6
         else:
-            update.message.replyt_text('Ок')
+            update.message.reply_text('Ок')
             download_image(user_id, context)
             anaglyph_transformation(user_id, nums[0])
             update.message.reply_text('Держи',
                                       reply_markup=markup_receive_photo)
             context.bot.send_photo(update.message.chat_id,
-                                   open(f'user_images/{user_id}.jpg'), 'rb')
+                                   open(f'user_images/{user_id}.jpg', 'rb'))
             os.remove(f'user_images/{user_id}.jpg')
             return 1
     elif 'верн' in text.lower():
@@ -244,6 +259,53 @@ def anaglyph(update, context):
     else:
         update.message.reply_text('Не понял тебя')
         return 6
+
+
+def superimpose(update, context):
+    text = update.message.text
+    if text is not None:
+        if 'верн' in text.lower():
+            update.message.reply_text('Какую обработку ты хочешь получить?',
+                                      reply_markup=markup_receive_photo)
+            return 1
+        else:
+            update.message.reply_text('Я не понимаю')
+            return 7
+    context.user_data['file_id_'] = update.message.photo[-1].file_id
+    update.message.reply_text('Выбери прозрачность первого изображени в процен'
+                              'тах', reply_markup=go_back_markup)
+    return 8
+
+
+def transparency(update, context):
+    user_id = update.message.from_user.id
+    text = update.message.text
+    nums = find_nums(text)
+    if len(nums) == 1:
+        if 0 <= nums[0] <= 100:
+            download_image(user_id, context)
+            file_id = context.user_data['file_id']
+            context.user_data['file_id'] = context.user_data['file_id_']
+            download_image(str(user_id) + '_', context)
+            context.user_data['file_id'] = file_id
+            superimpose_transformation(user_id, nums[0] / 100)
+            update.message.reply_text('То что получилось:',
+                                      reply_markup=markup_receive_photo)
+            context.bot.send_photo(update.message.chat_id,
+                                   open(f'user_images/{user_id}.jpg', 'rb'))
+            os.remove(f'user_images/{user_id}.jpg')
+            os.remove(f'user_images/{user_id}_.jpg')
+            return 1
+        else:
+            update.message.reply_text('Прозрачность должна быть от 0 до 100')
+            return 8
+    if 'верн' in text.lower():
+        update.message.reply_text('Какую обработку ты хочешь получить?',
+                                  reply_markup=markup_receive_photo)
+        return 1
+    else:
+        update.message.reply_text('Не понял тебя')
+        return 8
 
 
 def simple_reply(update, context):
@@ -265,7 +327,8 @@ def main():
                       MessageHandler(Filters.text, command_check,
                                      pass_user_data=True)],
         states={
-            1: [CommandHandler('b_w', b_w_transform, pass_user_data=True),
+            1: [CommandHandler('black_and_white', b_w_transform,
+                               pass_user_data=True),
                 CommandHandler('palette', palette_chosen, pass_user_data=True),
                 MessageHandler(Filters.text, phrase_check)],
             2: [MessageHandler(Filters.text, palette_transform,
@@ -278,8 +341,13 @@ def main():
             4: [MessageHandler(Filters.text, variable_answer,
                                pass_user_data=True)],
             5: [MessageHandler(Filters.text, resize, pass_user_data=True)],
-            6: [MessageHandler(Filters.text, anaglyph)]
-        },
+            6: [MessageHandler(Filters.text, anaglyph)],
+            7: [MessageHandler(Filters.photo, superimpose,
+                               pass_user_data=True),
+                MessageHandler(Filters.text, superimpose,
+                               pass_user_data=True)],
+            8: [MessageHandler(Filters.text, transparency, pass_user_data=True)
+                ]},
         fallbacks=[MessageHandler(Filters.photo, receive_photo,
                                   pass_user_data=True)]
     )
@@ -292,8 +360,9 @@ def main():
 
 if __name__ == '__main__':
     reply_keyboard = [['Хочу чёрно-белую', 'Переведи в палитру цветов',
-                       'Масштабируй изображение', 'Инвертируй цвета',
-                       'Сделай анаглиф'], ['Что ты умеешь?']]
+                       'Масштабируй изображение'], ['Инвертируй цвета',
+                       'Сделай анаглиф', 'Совмести изображения'],
+                      ['Что ты умеешь?', 'Что такое NFT токен?']]
     markup_receive_photo = ReplyKeyboardMarkup(reply_keyboard,
                                                one_time_keyboard=False,
                                                resize_keyboard=True)
@@ -312,4 +381,15 @@ if __name__ == '__main__':
     go_back_markup = ReplyKeyboardMarkup(reply_keyboard,
                                          one_time_keyboard=False,
                                          resize_keyboard=True)
+    btn = InlineKeyboardButton('Что такое анаглиф?',
+                               url='https://ru.wikipedia.org/wiki/%D0%90%D0%BD'
+                                   '%D0%B0%D0%B3%D0%BB%D0%B8%D1%84')
+    anaglyph_markup = InlineKeyboardMarkup([[btn]])
+    btn = InlineKeyboardButton('Что такое NFT токен?',
+                               url='https://ru.wikipedia.org/wiki/%D0%9D%D0%B5'
+                                   '%D0%B2%D0%B7%D0%B0%D0%B8%D0%BC%D0%BE%D0%B7'
+                                   '%D0%B0%D0%BC%D0%B5%D0%BD%D1%8F%D0%B5%D0%BC'
+                                   '%D1%8B%D0%B9_%D1%82%D0%BE%D0%BA%D0%B5%D0%B'
+                                   'D')
+    nft_markup = InlineKeyboardMarkup([[btn]])
     main()

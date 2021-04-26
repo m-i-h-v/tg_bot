@@ -11,5 +11,5 @@ def size_transformation(filename, save_ratio, width=None, height=None):
     if save_ratio:
         image.thumbnail((width, height), Image.ANTIALIAS)
     else:
-        image.resize((width, height), Image.ANTIALIAS)
+        image = image.resize((width, height), Image.ANTIALIAS)
     image.save(f'user_images/{filename}.jpg')

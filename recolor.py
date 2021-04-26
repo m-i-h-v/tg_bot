@@ -5,7 +5,7 @@ from colorsys import rgb_to_hls
 
 pygame.init()
 screen = pygame.display.set_mode((1600, 1200))
-image = Image.open('batb.jpg')
+image = Image.open('transform_scripts/batb.jpg')
 pixels = image.load()
 palette = Image.open('palettes/palette_2.jpg')
 palette_pixels = palette.load()

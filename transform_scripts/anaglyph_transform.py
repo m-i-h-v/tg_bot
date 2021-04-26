@@ -8,12 +8,12 @@ def anaglyph_transformation(filename, delta):
     res = Image.new('RGB', (x, y), (0, 0, 0))
     pixels_r = res.load()
     for i in range(x):
-        for j in range(y):
+        for i_ in range(y):
             if i < delta:
-                r, g, b = pixels[i, j]
-                pixels_r[i, j] = 0, g, b
+                r, g, b = pixels[i, i_]
+                pixels_r[i, i_] = 0, g, b
             else:
-                pixels_r[i, j] = r, g, b
-                g, b = pixels[i, j][1:]
-                r = pixels[i - delta, j][0]
+                pixels_r[i, i_] = r, g, b
+                g, b = pixels[i, i_][1:]
+                r = pixels[i - delta, i_][0]
     res.save(f'user_images/{filename}.jpg')
