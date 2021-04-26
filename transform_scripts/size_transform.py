@@ -1,5 +1,6 @@
 from PIL import Image
 
+
 def size_transformation(filename, save_ratio, width=None, height=None):
     image = Image.open(f'user_images/{filename}.jpg')
     x, y = image.size

@@ -4,6 +4,7 @@ from transform_scripts.color_transform import color_transformation
 from transform_scripts.palette_transform import palette_transformation
 from transform_scripts.size_transform import size_transformation
 from transform_scripts.invert_transform import invert_transformation
+from transform_scripts.anaglyph_transform import anaglyph_transformation
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 import os
 
@@ -49,11 +50,7 @@ def receive_photo(update, context):
 
 def b_w_transform(update, context):
     user_id = update.message.from_user.id
-    if os.path.exists(f'user_images/{user_id}.jpg'):
-        os.remove(f'user_images/{user_id}.jpg')
-    file_id = context.user_data['file_id']
-    file = context.bot.getFile(file_id)
-    file.download(f'user_images/{user_id}.jpg')
+    download_image(user_id, context)
     color_transformation(f'user_images/{user_id}.jpg')
     context.bot.send_photo(update.message.chat_id,
                            open(f'user_images/{user_id}.jpg', 'rb'))
@@ -103,10 +100,11 @@ def palette_transform(update, context):
         user_id = update.message.from_user.id
         download_image(user_id, context)
         palette_transformation(f'user_images/{user_id}.jpg', nums[0])
+        update.message.reply_text('Держи')
         context.bot.send_photo(update.message.chat_id,
                                open(f'user_images/{user_id}.jpg', 'rb'))
         os.remove(f'user_images/{user_id}.jpg')
-        update.message.reply_text('Держи')
+
         return 1
     else:
         if 'nft' in text.lower() or 'token' in text.lower() \
@@ -129,7 +127,7 @@ def phrase_check(update, context):
     text = update.message.text
     if 'черн' in text.lower() or 'бел' in text.lower() \
             or 'чёрн' in text.lower():
-        update.message.reply_text('Отличный выбор, сейчас сделаю в ч/б')
+        update.message.reply_text('Отличный выбор')
         b_w_transform(update, context)
         return 1
     elif 'палитр' in text.lower() or 'набор' in text.lower():
@@ -153,6 +151,10 @@ def phrase_check(update, context):
         update.message.reply_text('Какую обработку ты хочешь получить?',
                                   reply_markup=markup_receive_photo)
         return 1
+    elif 'анаглиф' in text.lower():
+        update.message.reply_text('Хорошо, выбери смещение для изображения',
+                                  reply_markup=go_back_markup)
+        return 6
     elif 'умеешь' in text.lower():
         help(update, context)
         return 1
@@ -216,6 +218,34 @@ def resize(update, context):
         return 5
 
 
+def anaglyph(update, context):
+    text = update.message.text
+    user_id = update.message.from_user.id
+    nums = find_nums(text)
+    if len(nums) == 1:
+        if nums[0] == 0:
+            update.message.reply_text('Смещение изображения должно '
+                                      'быть больше 0')
+            return 6
+        else:
+            update.message.replyt_text('Ок')
+            download_image(user_id, context)
+            anaglyph_transformation(user_id, nums[0])
+            update.message.reply_text('Держи',
+                                      reply_markup=markup_receive_photo)
+            context.bot.send_photo(update.message.chat_id,
+                                   open(f'user_images/{user_id}.jpg'), 'rb')
+            os.remove(f'user_images/{user_id}.jpg')
+            return 1
+    elif 'верн' in text.lower():
+        update.message.reply_text('Какую обработку ты хочешь получить?',
+                                  reply_markup=markup_receive_photo)
+        return 1
+    else:
+        update.message.reply_text('Не понял тебя')
+        return 6
+
+
 def simple_reply(update, context):
     update.message.reply_text('Для начала пришли мне фото')
     return 3
@@ -247,7 +277,8 @@ def main():
                 MessageHandler(Filters.text, command_check)],
             4: [MessageHandler(Filters.text, variable_answer,
                                pass_user_data=True)],
-            5: [MessageHandler(Filters.text, resize, pass_user_data=True)]
+            5: [MessageHandler(Filters.text, resize, pass_user_data=True)],
+            6: [MessageHandler(Filters.text, anaglyph)]
         },
         fallbacks=[MessageHandler(Filters.photo, receive_photo,
                                   pass_user_data=True)]
@@ -261,16 +292,24 @@ def main():
 
 if __name__ == '__main__':
     reply_keyboard = [['Хочу чёрно-белую', 'Переведи в палитру цветов',
-                       'Масштабируй изображение', 'Инвертируй цвета'],
-                      ['Что ты умеешь?']]
+                       'Масштабируй изображение', 'Инвертируй цвета',
+                       'Сделай анаглиф'], ['Что ты умеешь?']]
     markup_receive_photo = ReplyKeyboardMarkup(reply_keyboard,
-                                               one_time_keyboard=False)
+                                               one_time_keyboard=False,
+                                               resize_keyboard=True)
     reply_keyboard = [['1', '2', '3'], ['4', '5', '6'], ['Вернуться']]
     markup_choose_palette = ReplyKeyboardMarkup(reply_keyboard,
-                                                one_time_keyboard=False)
+                                                one_time_keyboard=False,
+                                                resize_keyboard=True)
     reply_keyboard = [['Обработай мне фото', 'Что ты умеешь?']]
-    start_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    start_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False,
+                                       resize_keyboard=True)
     reply_keyboard = [['Да', 'Нет'], ['Вернуться']]
     variable_question_markup = ReplyKeyboardMarkup(reply_keyboard,
-                                                   one_time_keyboard=False)
+                                                   one_time_keyboard=False,
+                                                   resize_keyboard=True)
+    reply_keyboard = [['Вернуться']]
+    go_back_markup = ReplyKeyboardMarkup(reply_keyboard,
+                                         one_time_keyboard=False,
+                                         resize_keyboard=True)
     main()

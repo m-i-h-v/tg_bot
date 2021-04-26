@@ -1,5 +1,6 @@
 from PIL import Image
 
+
 def invert_transformation(filename):
     image = Image.open(f'user_images/{filename}.jpg')
     x, y = image.size
