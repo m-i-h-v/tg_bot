@@ -1,7 +1,6 @@
 from PIL import Image
 from colorsys import rgb_to_hls
 
-
 def palette_transformation(filename, pl_num):
     palette = Image.open(f'palettes/palette_{pl_num}.jpg')
     x, y = palette.size

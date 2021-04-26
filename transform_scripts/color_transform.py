@@ -1,6 +1,5 @@
 from PIL import Image
 
-
 def color_transformation(filename):
     image = Image.open(filename)
     x, y = image.size
